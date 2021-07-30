@@ -54,7 +54,6 @@ func (bitbuffer *BitBuffer) Size() int {
 	return len(bitbuffer.buffer)
 }
 
-
 // Seek
 // whence : 0 -> from head
 //		  : 1 -> from cur
@@ -66,7 +65,6 @@ func (bitBuffer *BitBuffer) Seek(pos int32, whence uint8) {
 	}
 }
 
-
 // Clear buffer.
 func (bitBuffer *BitBuffer) Clear() {
 	bitBuffer.buffer = []byte{}
@@ -76,16 +74,16 @@ func (bitBuffer *BitBuffer) Clear() {
 
 // Read a number of bits from the buffer and return them as a byte array.
 func (bitBuffer *BitBuffer) Read(numBits uint64) (data []byte, err error) {
-	if uint64((len(bitBuffer.buffer) - int(bitBuffer.bytePos))*8-int(bitBuffer.bitPos)) < numBits {
+	if uint64((len(bitBuffer.buffer)-int(bitBuffer.bytePos))*8-int(bitBuffer.bitPos)) < numBits {
 		err = io.EOF
 	}
 
-	for numBits > 0 && len(bitBuffer.buffer) - int(bitBuffer.bytePos) > 0 {
+	for numBits > 0 && len(bitBuffer.buffer)-int(bitBuffer.bytePos) > 0 {
 		data = append(data, bitBuffer.buffer[bitBuffer.bytePos])
 		data[len(data)-1] <<= bitBuffer.bitPos
 
-		if len(bitBuffer.buffer) - int(bitBuffer.bytePos) > 1 {
-			shifter := bitBuffer.buffer[bitBuffer.bytePos + 1] >> (8 - bitBuffer.bitPos)
+		if len(bitBuffer.buffer)-int(bitBuffer.bytePos) > 1 {
+			shifter := bitBuffer.buffer[bitBuffer.bytePos+1] >> (8 - bitBuffer.bitPos)
 			data[len(data)-1] ^= shifter
 		}
 
@@ -247,8 +245,6 @@ func (bitBuffer *BitBuffer) ReadInt32(numBits uint8) (data int32, err error) {
 	return
 }
 
-
-
 // ReadByte reads a byte from the buffer of numBits size and return the integer value.
 func (bitBuffer *BitBuffer) ReadByte(numBytes uint8) (data byte, err error) {
 	numBits := numBytes * 8
@@ -296,4 +292,27 @@ func (bitBuffer *BitBuffer) ReadFloat64() (data float64, err error) {
 	}
 	data = math.Float64frombits(rawData)
 	return
+}
+
+func (bitBuffer *BitBuffer) ReadStringToEnd() (data string, err error) {
+	dataBytes := []byte{}
+	for {
+		readByte, _ := bitBuffer.ReadByte(1)
+		if readByte == 0x00 {
+			break
+		}
+		dataBytes = append(dataBytes, readByte)
+	}
+	data = string(dataBytes)
+	return
+}
+
+func (bitBuffer *BitBuffer) ReadBoolean() (res bool, err error) {
+	res, _ = bitBuffer.ReadBit()
+	return
+}
+
+func (bitBuffer *BitBuffer) SkipRemainingBits() {
+	bitBuffer.bitPos = 0
+	bitBuffer.bytePos++
 }
