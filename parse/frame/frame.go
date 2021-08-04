@@ -1,6 +1,9 @@
 package frame
 
-import "go_demoParser/bitbuffer"
+import (
+	"errors"
+	"go_demoParser/bitbuffer"
+)
 
 //const (
 //	NetMsg0			uint8 = 0
@@ -38,4 +41,47 @@ func (h *Header) Time() float32 {
 
 func (h *Header) Number() uint32 {
 	return h.number
+}
+
+func (h *Header) GetFrameLength(buffer *bitbuffer.BitBuffer) (length int32, err error) {
+	switch h.frameType {
+	case 2: // START
+		err = nil
+		break
+	case 3: // command
+		length = 64
+		err = nil
+		break
+	case 4: // client data
+		length = 32
+		err = nil
+		break
+	case 5: // end of segment
+		break
+	case 6: // event
+		length = 84
+		err = nil
+		break
+	case 7:
+		length = 8
+		err = nil
+		break
+	case 8:
+		buffer.Seek(4, 1)
+		l, _ := buffer.ReadInt32(32)
+		length = l
+		buffer.Seek(-8, 1)
+		length += 24
+		err = nil
+		break
+	case 9:
+		l, _ := buffer.ReadInt32(32)
+		length = l + 4
+		buffer.Seek(-4, 1)
+		err = nil
+		break
+	default:
+		err = errors.New("Unknown parse type ")
+	}
+	return
 }

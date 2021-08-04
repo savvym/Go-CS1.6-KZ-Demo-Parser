@@ -2,19 +2,12 @@ package main
 
 import (
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"go_demoParser/bitbuffer"
 	"go_demoParser/parse"
 	"go_demoParser/parse/frame"
 	"io/ioutil"
 )
-
-type GameDataFrameHeader struct {
-	resolutionWidth  uint32
-	resolutionHeight uint32
-	length           uint32
-}
 
 func main() {
 	file, err := ioutil.ReadFile("/Users/zhanghaodong/Downloads/2.dem")
@@ -43,16 +36,16 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		fmt.Println(header)
+		//fmt.Println(header)
 		if header.Type() == 0 || header.Type() == 1 {
-			gameDataFrameHeader := ReadGameDataFrameHeader(buffer)
-			//fmt.Println(buffer.BytePos())
-			// GameData
-			_, _ = buffer.Read(uint64(gameDataFrameHeader.length) * 8)
-			//fmt.Println(len(data),data)
-			// 解析GameData...
-
-			// ...
+			var gameData frame.GameDataFrame
+			err := gameData.Read(buffer)
+			if err != nil {
+				panic(err)
+			}
+			//fmt.Println(gameData.GetMoveVars())
+			// 解析server message
+			// serverMessage := gameData.GetServerMessage()
 		} else if header.Type() == 3 {
 			var consoleCommand frame.ConsoleCommandFrame
 			err := consoleCommand.Read(buffer)
@@ -96,7 +89,7 @@ func main() {
 			//fmt.Println(sound)
 
 		} else {
-			length, err := GetFrameLength(header.Type(), buffer)
+			length, err := header.GetFrameLength(buffer)
 			if err != nil {
 				panic(err)
 			}
@@ -105,56 +98,4 @@ func main() {
 		}
 	}
 
-}
-
-func ReadGameDataFrameHeader(buffer *bitbuffer.BitBuffer) *GameDataFrameHeader {
-	buffer.Seek(220, 1)
-	resolutionWidth, _ := buffer.ReadUint32(32)
-	resolutionHeight, _ := buffer.ReadUint32(32)
-	buffer.Seek(236, 1)
-	length, _ := buffer.ReadUint32(32)
-	return &GameDataFrameHeader{resolutionWidth, resolutionHeight, length}
-}
-
-func GetFrameLength(frameType uint8, buffer *bitbuffer.BitBuffer) (length int32, err error) {
-	switch frameType {
-	case 2: // START
-		err = nil
-		break
-	case 3: // command
-		length = 64
-		err = nil
-		break
-	case 4: // client data
-		length = 32
-		err = nil
-		break
-	case 5: // end of segment
-		break
-	case 6: // event
-		length = 84
-		err = nil
-		break
-	case 7:
-		length = 8
-		err = nil
-		break
-	case 8:
-		buffer.Seek(4, 1)
-		l, _ := buffer.ReadInt32(32)
-		length = l
-		buffer.Seek(-8, 1)
-		length += 24
-		err = nil
-		break
-	case 9:
-		l, _ := buffer.ReadInt32(32)
-		length = l + 4
-		buffer.Seek(-4, 1)
-		err = nil
-		break
-	default:
-		err = errors.New("Unknown parse type ")
-	}
-	return
 }
