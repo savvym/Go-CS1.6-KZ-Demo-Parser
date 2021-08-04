@@ -1,5 +1,7 @@
 package frame
 
+import "go_demoParser/bitbuffer"
+
 //const (
 //	NetMsg0			uint8 = 0
 //	NetMsg1			uint8 = 1
@@ -19,54 +21,21 @@ type Header struct {
 	number    uint32
 }
 
-type ConsoleCommandFrame struct {
-	command string // 64byte
+func (h *Header) Read(buffer *bitbuffer.BitBuffer) (err error) {
+	h.frameType, err = buffer.ReadUint8(8)
+	h.time, err = buffer.ReadFloat32()
+	h.number, err = buffer.ReadUint32(32)
+	return
 }
 
-// 32byte
-type ClientDataFrame struct {
-	origin     [3]float32
-	viewAngles [3]float32
-	weaponBits int32
-	fov        float32
+func (h *Header) Type() uint8 {
+	return h.frameType
 }
 
-// 84byte
-type EventFrame struct {
-	flags uint32
-	index uint32
-	delay float32
-	args  EventArgs
+func (h *Header) Time() float32 {
+	return h.time
 }
 
-type EventArgs struct {
-	flags       uint32
-	entityIndex uint32
-	origin      [3]float32
-	angles      [3]float32
-	velocity    [3]float32
-	ducking     uint32
-	fparam1     float32
-	fparam2     float32
-	iparam1     uint32
-	iparam2     uint32
-	bparam1     uint32
-	bparam2     uint32
-}
-
-// 8byte
-type WeaponAnimFrame struct {
-	anim uint32
-	body uint32
-}
-
-//
-type SoundFrame struct {
-	channel         uint32
-	soundNameLength int32  // sound_name length
-	soundName       string // sound_name
-	attenuation     float32
-	volume          float32
-	flags           uint32
-	pitch           uint32
+func (h *Header) Number() uint32 {
+	return h.number
 }

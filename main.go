@@ -6,14 +6,9 @@ import (
 	"fmt"
 	"go_demoParser/bitbuffer"
 	"go_demoParser/parse"
+	"go_demoParser/parse/frame"
 	"io/ioutil"
 )
-
-type FrameHeader struct {
-	frameType uint8
-	time      float32
-	number    uint32
-}
 
 type GameDataFrameHeader struct {
 	resolutionWidth  uint32
@@ -38,62 +33,78 @@ func main() {
 	// 解析dirEntry
 	var dirEntry parse.DirectoryEntry
 	dirEntry.ReadDirEntry(buffer)
-	fmt.Println(dirEntry)
+	//fmt.Println(dirEntry)
 
 	off := dirEntry.EntryList()[1].Offset()
 	buffer.Seek(int32(off), 0)
 	for {
-		header := ReadFrameHeader(buffer)
+		var header frame.Header
+		err := header.Read(buffer)
+		if err != nil {
+			panic(err)
+		}
 		fmt.Println(header)
-		if header.frameType == 0 || header.frameType == 1 {
+		if header.Type() == 0 || header.Type() == 1 {
 			gameDataFrameHeader := ReadGameDataFrameHeader(buffer)
 			//fmt.Println(buffer.BytePos())
 			// GameData
-			buffer.Read(uint64(gameDataFrameHeader.length) * 8)
+			_, _ = buffer.Read(uint64(gameDataFrameHeader.length) * 8)
 			//fmt.Println(len(data),data)
 			// 解析GameData...
 
 			// ...
-		} else if header.frameType == 5 {
+		} else if header.Type() == 3 {
+			var consoleCommand frame.ConsoleCommandFrame
+			err := consoleCommand.Read(buffer)
+			if err != nil {
+				panic(err)
+			}
+			//fmt.Println(consoleCommand)
+
+		} else if header.Type() == 4 {
+			var clientData frame.ClientDataFrame
+			err := clientData.Read(buffer)
+			if err != nil {
+				panic(err)
+			}
+			//fmt.Println(clientData)
+
+		} else if header.Type() == 5 {
 			break
+		} else if header.Type() == 6 {
+			var event frame.EventFrame
+			err := event.Read(buffer)
+			if err != nil {
+				panic(err)
+			}
+			//fmt.Println(event)
+
+		} else if header.Type() == 7 {
+			var weaponAnim frame.WeaponAnimFrame
+			err := weaponAnim.Read(buffer)
+			if err != nil {
+				panic(err)
+			}
+			//fmt.Println(weaponAnim)
+
+		} else if header.Type() == 8 {
+			var sound frame.SoundFrame
+			err := sound.Read(buffer)
+			if err != nil {
+				panic(err)
+			}
+			//fmt.Println(sound)
+
 		} else {
-			length, err := GetFrameLength(header.frameType, buffer)
+			length, err := GetFrameLength(header.Type(), buffer)
 			if err != nil {
 				panic(err)
 			}
 			//fmt.Println(length)
 			buffer.Seek(length, 1)
 		}
-
-		//else if header.frameType == 8{
-		//	channel, _ := buffer.ReadUint32(32)
-		//	fmt.Println("channel", channel)
-		//	l, _ := buffer.ReadInt32(32)
-		//	data, _ := buffer.ReadString(uint64(l))
-		//	fmt.Println("data", data)
-		//	attenuation, _ := buffer.ReadFloat32()
-		//	fmt.Println("attenuation", attenuation)
-		//	volume, _ := buffer.ReadFloat32()
-		//	fmt.Println("volume", volume)
-		//	flags, _ := buffer.ReadUint32(32)
-		//	fmt.Println("flags", flags)
-		//	pitch, _ := buffer.ReadUint32(32)
-		//	fmt.Println("pitch", pitch)
-		//}
 	}
 
-}
-
-func ReadFrameHeader(buffer *bitbuffer.BitBuffer) *FrameHeader {
-	frameType, _ := buffer.ReadUint8(8)
-	time, _ := buffer.ReadFloat32()
-	number, _ := buffer.ReadUint32(32)
-	header := &FrameHeader{
-		frameType,
-		time,
-		number,
-	}
-	return header
 }
 
 func ReadGameDataFrameHeader(buffer *bitbuffer.BitBuffer) *GameDataFrameHeader {
@@ -104,12 +115,6 @@ func ReadGameDataFrameHeader(buffer *bitbuffer.BitBuffer) *GameDataFrameHeader {
 	length, _ := buffer.ReadUint32(32)
 	return &GameDataFrameHeader{resolutionWidth, resolutionHeight, length}
 }
-
-//func ParseGameDataMessages(frameData []byte) {
-//	buffer := bitbuffer.NewBitBuffer(binary.LittleEndian)
-//	buffer.Feed(frameData)
-//
-//}
 
 func GetFrameLength(frameType uint8, buffer *bitbuffer.BitBuffer) (length int32, err error) {
 	switch frameType {
