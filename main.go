@@ -5,34 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"go_demoParser/bitbuffer"
+	"go_demoParser/parse"
 	"io/ioutil"
 )
-
-type DemoHeader struct {
-	magic          string
-	demoVersion    uint32
-	networkVersion uint32
-	mapName        string
-	gameDll        string
-	mapCRC         uint32
-	dirOffset      uint32
-}
-
-type DemoDirEntry struct {
-	number    uint32
-	entryList []DirEntry
-}
-
-type DirEntry struct {
-	dType  uint32
-	title  string
-	flags  uint32
-	play   int32
-	time   float32
-	frames uint32
-	offset uint32
-	length uint32
-}
 
 type FrameHeader struct {
 	frameType uint8
@@ -56,25 +31,28 @@ func main() {
 
 	// 开始解析文件
 	// 解析demo头
-	demoHeader := ReadDemoHeader(buffer)
+	var demoHeader parse.DemoHeader
+	demoHeader.ReadDemoHeader(buffer)
 	fmt.Println(demoHeader)
 
 	// 解析dirEntry
-	dirEntry := ReadDirEntry(buffer)
+	var dirEntry parse.DirectoryEntry
+	dirEntry.ReadDirEntry(buffer)
 	fmt.Println(dirEntry)
 
-	off := dirEntry.entryList[1].offset
+	off := dirEntry.EntryList()[1].Offset()
 	buffer.Seek(int32(off), 0)
 	for {
 		header := ReadFrameHeader(buffer)
 		fmt.Println(header)
 		if header.frameType == 0 || header.frameType == 1 {
 			gameDataFrameHeader := ReadGameDataFrameHeader(buffer)
-
+			//fmt.Println(buffer.BytePos())
 			// GameData
 			buffer.Read(uint64(gameDataFrameHeader.length) * 8)
-
+			//fmt.Println(len(data),data)
 			// 解析GameData...
+
 			// ...
 		} else if header.frameType == 5 {
 			break
@@ -86,63 +64,24 @@ func main() {
 			//fmt.Println(length)
 			buffer.Seek(length, 1)
 		}
+
+		//else if header.frameType == 8{
+		//	channel, _ := buffer.ReadUint32(32)
+		//	fmt.Println("channel", channel)
+		//	l, _ := buffer.ReadInt32(32)
+		//	data, _ := buffer.ReadString(uint64(l))
+		//	fmt.Println("data", data)
+		//	attenuation, _ := buffer.ReadFloat32()
+		//	fmt.Println("attenuation", attenuation)
+		//	volume, _ := buffer.ReadFloat32()
+		//	fmt.Println("volume", volume)
+		//	flags, _ := buffer.ReadUint32(32)
+		//	fmt.Println("flags", flags)
+		//	pitch, _ := buffer.ReadUint32(32)
+		//	fmt.Println("pitch", pitch)
+		//}
 	}
 
-}
-
-func ReadDemoHeader(buffer *bitbuffer.BitBuffer) *DemoHeader {
-	buffer.Seek(0, 0)
-	magic, _ := buffer.ReadString(8)
-	demoVersion, _ := buffer.ReadUint32(32)
-	networkVersion, _ := buffer.ReadUint32(32)
-	mapName, _ := buffer.ReadString(260)
-	gameDll, _ := buffer.ReadString(260)
-	mapCRC, _ := buffer.ReadUint32(32)
-	dirOffset, _ := buffer.ReadUint32(32)
-	return &DemoHeader{
-		magic,
-		demoVersion,
-		networkVersion,
-		mapName,
-		gameDll,
-		mapCRC,
-		dirOffset,
-	}
-}
-
-func ReadDirEntry(buffer *bitbuffer.BitBuffer) *DemoDirEntry {
-	buffer.Seek(540, 0)
-	dirOffset, _ := buffer.ReadUint32(32)
-	buffer.Seek(int32(dirOffset), 0)
-	number, _ := buffer.ReadUint32(32)
-	fmt.Println(number)
-	demoDirEntry := &DemoDirEntry{
-		number:    number,
-		entryList: nil,
-	}
-	for i := uint32(0); i < number; i++ {
-
-		dType, _ := buffer.ReadUint32(32)
-		title, _ := buffer.ReadString(64)
-		flags, _ := buffer.ReadUint32(32)
-		play, _ := buffer.ReadInt32(32)
-		time, _ := buffer.ReadFloat32()
-		frames, _ := buffer.ReadUint32(32)
-		offset, _ := buffer.ReadUint32(32)
-		length, _ := buffer.ReadUint32(32)
-		dirEntry := DirEntry{
-			dType,
-			title,
-			flags,
-			play,
-			time,
-			frames,
-			offset,
-			length,
-		}
-		demoDirEntry.entryList = append(demoDirEntry.entryList, dirEntry)
-	}
-	return demoDirEntry
 }
 
 func ReadFrameHeader(buffer *bitbuffer.BitBuffer) *FrameHeader {
@@ -174,20 +113,20 @@ func ReadGameDataFrameHeader(buffer *bitbuffer.BitBuffer) *GameDataFrameHeader {
 
 func GetFrameLength(frameType uint8, buffer *bitbuffer.BitBuffer) (length int32, err error) {
 	switch frameType {
-	case 2: // ???
+	case 2: // START
 		err = nil
 		break
-	case 3:
+	case 3: // command
 		length = 64
 		err = nil
 		break
-	case 4:
+	case 4: // client data
 		length = 32
 		err = nil
 		break
 	case 5: // end of segment
 		break
-	case 6:
+	case 6: // event
 		length = 84
 		err = nil
 		break
@@ -210,7 +149,7 @@ func GetFrameLength(frameType uint8, buffer *bitbuffer.BitBuffer) (length int32,
 		err = nil
 		break
 	default:
-		err = errors.New("Unknown frame type ")
+		err = errors.New("Unknown parse type ")
 	}
 	return
 }
