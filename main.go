@@ -88,6 +88,13 @@ func main() {
 			}
 			//fmt.Println(sound)
 
+		} else if header.Type() == 9 {
+			var demoBuffer frame.DemoBufferFrame
+			err := demoBuffer.Read(buffer)
+			if err != nil {
+				panic(err)
+			}
+			//fmt.Println(demoBuffer)
 		} else {
 			length, err := header.GetFrameLength(buffer)
 			if err != nil {
