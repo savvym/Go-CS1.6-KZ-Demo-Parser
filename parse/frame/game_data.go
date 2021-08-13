@@ -2,8 +2,10 @@ package frame
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"go_demoParser/bitbuffer"
+	"reflect"
 )
 
 var message = map[uint8]string{
@@ -185,28 +187,64 @@ func (g *GameDataFrame) GetMoveVars() *MoveVars {
 	return g.movVars
 }
 
-func (g *GameDataFrame) ParseServerMessage() (err error) {
+var messageHandler = map[string]interface{}{
+	"svc_sendcvarvalue2": messageSendCvarValue2,
+	"svc_time":           messageSvcTime,
+	"svc_clientdata":     messageClientData,
+}
+
+func (g *GameDataFrame) ParseServerMessage() {
 	buffer := bitbuffer.NewBitBuffer(binary.LittleEndian)
 	buffer.Feed(*g.serverMessageRaw)
-	readingGameData := true
+	//readingGameData := true
 	for {
 		messageId, err := buffer.ReadUint8(8)
 		if err != nil {
 			return
 		}
 		messageName := message[messageId]
-		fmt.Println(messageName)
-		// Check if we've reached the end of the frame, or if any of the messages have called SkipGameDataFrame (readingGameData will be false).
-		if readingGameData == false {
-			break
+		fmt.Println(messageId, messageName)
+		if messageHandler[messageName] == nil {
+			panic("no such messageHandler")
 		}
+		call(messageName, buffer)
 	}
 	return
 }
 
-//
-//func getMessageName(messageId uint8) {
-//	switch messageId {
-//		case
-//	}
-//}
+func messageClientData(buffer *bitbuffer.BitBuffer) (err error) {
+	deltaSequence, err := buffer.ReadBoolean()
+	if deltaSequence {
+		buffer.Read(8)
+	}
+	// 持续施工中...
+	return
+}
+
+func messageSendCvarValue2(buffer *bitbuffer.BitBuffer) (err error) {
+	buffer.Seek(4, 1)
+	str, err := buffer.ReadStringToEnd()
+	fmt.Println(str)
+	return
+}
+
+func messageSvcTime(buffer *bitbuffer.BitBuffer) (err error) {
+	buffer.Seek(4, 1)
+	return
+}
+
+func call(funcName string, params ...interface{}) (result interface{}, err error) {
+	f := reflect.ValueOf(messageHandler[funcName])
+	if len(params) != f.Type().NumIn() {
+		err = errors.New("The number of params is out of index.")
+		return
+	}
+	in := make([]reflect.Value, len(params))
+	for k, param := range params {
+		in[k] = reflect.ValueOf(param)
+	}
+	var res []reflect.Value
+	res = f.Call(in)
+	result = res[0].Interface()
+	return
+}

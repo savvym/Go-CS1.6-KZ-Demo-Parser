@@ -43,10 +43,8 @@ func main() {
 			if err != nil {
 				panic(err)
 			}
-			//fmt.Println(gameData.GetMoveVars())
-			// 解析server message
-			//serverMessage := gameData.GetServerMessage()
-			//fmt.Println(serverMessage)
+			//gameData.ParseServerMessage()
+			//break
 		} else if header.Type() == 2 {
 			continue
 		} else if header.Type() == 3 {
