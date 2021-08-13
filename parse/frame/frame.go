@@ -17,6 +17,7 @@ import (
 //	Sound          	uint8 = 8
 //	DemoBuffer     	uint8 = 9
 //)
+//
 
 type Header struct {
 	frameType uint8
@@ -43,7 +44,7 @@ func (h *Header) Number() uint32 {
 	return h.number
 }
 
-func (h *Header) GetFrameLength(buffer *bitbuffer.BitBuffer) (length int32, err error) {
+func (h *Header) getFrameLength(buffer *bitbuffer.BitBuffer) (length int32, err error) {
 	switch h.frameType {
 	case 2: // START
 		err = nil
@@ -84,4 +85,12 @@ func (h *Header) GetFrameLength(buffer *bitbuffer.BitBuffer) (length int32, err 
 		err = errors.New("Unknown parse type ")
 	}
 	return
+}
+
+func (h *Header) SkipFrame(buffer *bitbuffer.BitBuffer) {
+	length, err := h.getFrameLength(buffer)
+	if err != nil {
+		panic(err)
+	}
+	buffer.Seek(length, 1)
 }

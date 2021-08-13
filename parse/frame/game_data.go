@@ -1,11 +1,77 @@
 package frame
 
-import "go_demoParser/bitbuffer"
+import (
+	"encoding/binary"
+	"fmt"
+	"go_demoParser/bitbuffer"
+)
+
+var message = map[uint8]string{
+	1:  "svc_nop",
+	2:  "svc_disconnect",
+	3:  "svc_event",
+	4:  "svc_version",
+	5:  "svc_setview",
+	6:  "svc_sound",
+	7:  "svc_time",
+	8:  "svc_print",
+	9:  "svc_stufftext",
+	10: "svc_setangle",
+	11: "svc_serverinfo",
+	12: "svc_lightstyle",
+	13: "svc_updateuserinfo",
+	14: "svc_deltadescription",
+	15: "svc_clientdata",
+	16: "svc_stopsound",
+	17: "svc_pings",
+	18: "svc_particle",
+	19: "svc_damage",
+	20: "svc_spawnstatic",
+	21: "svc_event_reliable",
+	22: "svc_spawnbaseline",
+	23: "svc_tempentity",
+	24: "svc_setpause",
+	25: "svc_signonnum",
+	26: "svc_centerprint",
+	27: "svc_killedmonster",
+	28: "svc_foundsecret",
+	29: "svc_spawnstaticsound",
+	30: "svc_intermission",
+	31: "svc_finale",
+	32: "svc_cdtrack",
+	33: "svc_restore",
+	34: "svc_cutscene",
+	35: "svc_weaponanim",
+	36: "svc_decalname",
+	37: "svc_roomtype",
+	38: "svc_addangle",
+	39: "svc_newusermsg",
+	40: "svc_packetentities",
+	41: "svc_deltapacketentities",
+	42: "svc_choke",
+	43: "svc_resourcelist",
+	44: "svc_newmovevars",
+	45: "svc_resourcerequest",
+	46: "svc_customization",
+	47: "svc_crosshairangle",
+	48: "svc_soundfade",
+	49: "svc_filetxferfailed",
+	50: "svc_hltv",
+	51: "svc_director",
+	52: "svc_voiceinit",
+	53: "svc_voicedata",
+	54: "svc_sendextrainfo",
+	55: "svc_timescale",
+	56: "svc_resourcelocation",
+	57: "svc_sendcvarvalue",
+	58: "svc_sendcvarvalue2",
+}
 
 type GameDataFrame struct {
 	gameDataFrameHeader
-	movVars       *MoveVars
-	serverMessage *[]byte
+	movVars          *MoveVars
+	serverMessageRaw *[]byte
+	serverMessage    *map[string]interface{}
 }
 
 type gameDataFrameHeader struct {
@@ -107,14 +173,40 @@ func (g *GameDataFrame) Read(buffer *bitbuffer.BitBuffer) (err error) {
 	buffer.Seek(44, 1)
 	g.length, err = buffer.ReadUint32(32)
 	data, err := buffer.Read(uint64(g.length) * 8)
-	g.serverMessage = &data
+	g.serverMessageRaw = &data
 	return
 }
 
 func (g *GameDataFrame) GetServerMessage() []byte {
-	return *g.serverMessage
+	return *g.serverMessageRaw
 }
 
 func (g *GameDataFrame) GetMoveVars() *MoveVars {
 	return g.movVars
 }
+
+func (g *GameDataFrame) ParseServerMessage() (err error) {
+	buffer := bitbuffer.NewBitBuffer(binary.LittleEndian)
+	buffer.Feed(*g.serverMessageRaw)
+	readingGameData := true
+	for {
+		messageId, err := buffer.ReadUint8(8)
+		if err != nil {
+			return
+		}
+		messageName := message[messageId]
+		fmt.Println(messageName)
+		// Check if we've reached the end of the frame, or if any of the messages have called SkipGameDataFrame (readingGameData will be false).
+		if readingGameData == false {
+			break
+		}
+	}
+	return
+}
+
+//
+//func getMessageName(messageId uint8) {
+//	switch messageId {
+//		case
+//	}
+//}

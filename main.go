@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"go_demoParser/bitbuffer"
 	"go_demoParser/parse"
@@ -26,7 +27,6 @@ func main() {
 	// 解析dirEntry
 	var dirEntry parse.DirectoryEntry
 	dirEntry.ReadDirEntry(buffer)
-	//fmt.Println(dirEntry)
 
 	off := dirEntry.EntryList()[1].Offset()
 	buffer.Seek(int32(off), 0)
@@ -36,7 +36,7 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		//fmt.Println(header)
+		fmt.Println(header)
 		if header.Type() == 0 || header.Type() == 1 {
 			var gameData frame.GameDataFrame
 			err := gameData.Read(buffer)
@@ -45,8 +45,12 @@ func main() {
 			}
 			//fmt.Println(gameData.GetMoveVars())
 			// 解析server message
-			// serverMessage := gameData.GetServerMessage()
+			//serverMessage := gameData.GetServerMessage()
+			//fmt.Println(serverMessage)
+		} else if header.Type() == 2 {
+			continue
 		} else if header.Type() == 3 {
+			//header.SkipFrame(buffer)
 			var consoleCommand frame.ConsoleCommandFrame
 			err := consoleCommand.Read(buffer)
 			if err != nil {
@@ -96,12 +100,8 @@ func main() {
 			}
 			//fmt.Println(demoBuffer)
 		} else {
-			length, err := header.GetFrameLength(buffer)
-			if err != nil {
-				panic(err)
-			}
-			//fmt.Println(length)
-			buffer.Seek(length, 1)
+			err = errors.New("Unknown parse type ")
+			panic(err)
 		}
 	}
 
